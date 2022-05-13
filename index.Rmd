@@ -1,0 +1,85 @@
+---
+title: "Mortality in individuals with recent primary or secondary care treatments for mental disorders in Finland"
+output:
+  html_document:
+    theme: bootstrap
+    toc: true
+
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+options(scipen = 999) # no scientific notation for big numbers
+options(digits = 15)
+
+library(magrittr)
+library(here)
+library(data.table)
+library(readxl)
+library(writexl)
+library(flextable)
+library(stringr)
+library(ggplot2)
+library(lemon)
+library(patchwork)
+library(DT)
+
+```
+
+```{r}
+labs_lst <- list()
+labs_lst$asmr <- "ASMR per 1 000 person-years (95% CI)"
+labs_lst$m_seco <- "Model accounting for secondary care only"
+
+footnotes_lst <- list()
+footnotes_lst$asmr <- "Standardized to the 2013 European Standard Population by 5-year age groups"
+footnotes_lst$model_1 <- "Model 1: adjusted for calendar year and age group (5-year intervals)"
+footnotes_lst$model_2 <- "Model 2: adjusted for calendar year, age group, urbanicity, region, education, living alone, household income, and economic activity"
+footnotes_lst$model_3 <- "Model 3: adjusted for calendar year, age group, and Charlson comorbidity index (CCI)"
+footnotes_lst$model_4 <- "Model 4: adjusted for calendar year, age group, urbanicity, region, education, living alone, household income, economic activity, and CCI" 
+footnotes_lst$secondary_only <- "Mortality in individuals with secondary care treatments compared to individuals without secondary care treatments (primary care ignored)"
+
+```
+
+ Supplementary information
+
+# Methods 
+
+# Main findigs
+
+## Age-standardized mortality rates (ASMRs) and mortality rate ratios (MRRs) in individuals with and without a one-year history of mental health treatments
+
+```{r}
+
+t1 <- fread(here('data', 'table1.csv')) %>%
+  as_grouped_data(groups = c('Gender', 'Model')) %>% 
+  as_flextable(hide_grouplabel= TRUE) %>% 
+  #flextable() %>% 
+  compose(part = "header", j = "ASMR", value = as_paragraph(labs_lst$asmr, as_sup("a"))) %>%
+  compose(part = "header", j = "Model 1" , value = as_paragraph("Model 1", as_sup("b"))) %>%
+  compose(part = "header", j = "Model 2" , value = as_paragraph("Model 2", as_sup("c"))) %>%
+  compose(part = "header", j = "Model 3" , value = as_paragraph("Model 3", as_sup("d"))) %>%
+  compose(part = "header", j = "Model 4" , value = as_paragraph("Model 4", as_sup("e"))) %>% 
+  compose(  i = ~ Model == labs_lst$m_seco,
+         value = as_paragraph(labs_lst$m_seco, as_sup("f"))) %>% 
+  padding( i= c(5,6, 14,15), j = "Type" , padding.left=20)
+  
+
+t1 %>% 
+    theme_vanilla() %>%
+  bg(i= c(4,13) , bg="pink") %>% 
+  bg(i= c(9,18) , bg="yellow") %>% 
+  fontsize(i = NULL, j = NULL, size = 8, part = "all") %>% 
+width(width =  c(Type = 2.7, `Deaths, n (%)` = 1.0, `Person-years (%)` = 1.2, `ASMR per 1 000 person-years  (95% CI)a` = 1.5, `Model 1b` = 1.076, `Model 2c` = 1.076, `Model 3d` = 1.076, `Model 4e` = 1.076)) 
+
+
+```
+
+^a^`r footnotes_lst$asmr`.
+^b^Model 1: adjusted for `r footnotes_lst$model_1`.
+^c^Model 2: adjusted for `r footnotes_lst$model_2`.
+^d^Model 3: adjusted for `r footnotes_lst$model_3`.
+^e^`r footnotes_lst$secondary_only`.
+
+## 
