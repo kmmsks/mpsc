@@ -1,15 +1,20 @@
 ---
-title: "Mortality in individuals with recent primary or secondary care treatments for mental disorders in Finland"
+title: "Mortality in persons with recent primary or secondary care contacts for mental disorders in Finland"
 output:
   html_document:
-    theme: bootstrap
+    css: style.scss
     toc: true
-
+    toc_float:
+      collapsed: false
+bibliography: refs.bib
+csl: sage-vancouver.csl
+link-citations: true
 ---
 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, out.width = '90%')
+
 options(scipen = 999) # no scientific notation for big numbers
 options(digits = 15)
 
@@ -24,16 +29,45 @@ library(ggplot2)
 library(lemon)
 library(patchwork)
 library(DT)
+library(plotly)
+
+```
+
+```{r}
+fam <- "sans"
+siz <- 12
+theme_set(theme_light(base_size =siz, base_family = fam) + 
+            theme(#panel.grid.major.y = element_line(colour = "gray"),
+                  #text=element_text(family="sans"),
+                  plot.title=element_text(size=siz,  family=fam),
+                  legend.text=element_text(size=siz, family = fam),
+                  strip.background = element_rect(fill = "white"),
+                  strip.text.x = element_text(size=siz,color="black", hjust = -0.01))
+          )
+theme_update()
+
+# number_formats:
+n_decim <- function(x, n_decim=2, big_mark = ' '){
+  #format(as.numeric(sprintf(paste0("%.", n_decim, "f"), x)), big.mark = big_mark)
+  formatC(x, big.mark = big_mark, digits = n_decim, format = 'f')
+  }
+
+# format MRR (95 % CI, xx-yy)
+get_mrr <- function(x, ci_prefix = '95% CI, '){
+  paste0(n_decim(x$mrr, 2), ' (', ci_prefix, n_decim(x$lci), '-', n_decim(x$uci), ')')
+}
 
 ```
 
 ```{r}
 labs_lst <- list()
-labs_lst$asmr <- "ASMR per 1 000 person-years (95% CI)"
+labs_lst$asmr <- "ASMR (95% CI)"
 labs_lst$m_seco <- "Model accounting for secondary care only"
+labs_lst$mrr_ci <- "Mortality rate ratio (95% CI)"
+
 
 footnotes_lst <- list()
-footnotes_lst$asmr <- "Standardized to the 2013 European Standard Population by 5-year age groups"
+footnotes_lst$asmr <- "Age-standardized mortality rate per 1 000 person-years. Standardized to the 2013 European Standard Population by 5-year age groups"
 footnotes_lst$model_1 <- "Model 1: adjusted for calendar year and age group (5-year intervals)"
 footnotes_lst$model_2 <- "Model 2: adjusted for calendar year, age group, urbanicity, region, education, living alone, household income, and economic activity"
 footnotes_lst$model_3 <- "Model 3: adjusted for calendar year, age group, and Charlson comorbidity index (CCI)"
@@ -42,36 +76,60 @@ footnotes_lst$secondary_only <- "Mortality in individuals with secondary care tr
 
 ```
 
- Supplementary information
 
-# Methods 
 
-# Main findigs
+**Kimmo Suokas, Christian Hakulinen, Reijo Sund, Olli Kampman, Sami Pirkola**
 
-## Age-standardized mortality rates (ASMRs) and mortality rate ratios (MRRs) in individuals with and without a one-year history of mental health treatments
+`r Sys.Date()` 
+
+<br>
+
+**Description:** This document contains supplementary information on the study: 
+
+Suokas K, Hakulinen C, Sund R, Kampman O, Pirkola S. Mortality in persons with recent primary or secondary care contacts for mental disorders in Finland. World Psychiatry (in press).
+
+<br>
+
+# Background in brief
+ 
+- Mental disorders are commonly treated in primary care, but excess mortality related to mental disorders is usually studied with secondary care data. 
+
+- In Finland, primary care is included in the national health care registers since 2001.
+
+- This nationwide study examined excess mortality in individuals with a one-year history of any mental heatlh treatments in primary or secondary care.
+
+<br>
+
+# Main findings
+
+## Excess mortality
+
+**Table 1. Age-standardized mortality rates (ASMRs) and mortality rate ratios (MRRs) in individuals with and without a one-year history of mental health treatments**
 
 ```{r}
 
-t1 <- fread(here('data', 'table1.csv')) %>%
-  as_grouped_data(groups = c('Gender', 'Model')) %>% 
+dat <- list()
+dat$table_main <- fread(here('data', 'table_main.csv')) # otettu wordista!
+
+dat$table_main %>% 
+  as_grouped_data(groups = c('Gender', 'Model')) %>% # valiotsikot
   as_flextable(hide_grouplabel= TRUE) %>% 
-  #flextable() %>% 
-  compose(part = "header", j = "ASMR", value = as_paragraph(labs_lst$asmr, as_sup("a"))) %>%
+  compose(part = "header", j = "ASMR", value = as_paragraph(labs_lst$asmr, as_sup("a"))) %>% # column headers
   compose(part = "header", j = "Model 1" , value = as_paragraph("Model 1", as_sup("b"))) %>%
   compose(part = "header", j = "Model 2" , value = as_paragraph("Model 2", as_sup("c"))) %>%
   compose(part = "header", j = "Model 3" , value = as_paragraph("Model 3", as_sup("d"))) %>%
   compose(part = "header", j = "Model 4" , value = as_paragraph("Model 4", as_sup("e"))) %>% 
+  add_header_row(values = c("", labs_lst$mrr_ci), colwidths = c(4, 4)) %>% 
+  set_header_labels(Type = "") %>% 
   compose(  i = ~ Model == labs_lst$m_seco,
-         value = as_paragraph(labs_lst$m_seco, as_sup("f"))) %>% 
-  padding( i= c(5,6, 14,15), j = "Type" , padding.left=20)
-  
-
-t1 %>% 
-    theme_vanilla() %>%
-  bg(i= c(4,13) , bg="pink") %>% 
-  bg(i= c(9,18) , bg="yellow") %>% 
+         value = as_paragraph(labs_lst$m_seco, as_sup("f"))) %>%  # superscipt valiotsikkoriville
+  padding( i= c(5,6, 14,15), j = "Type" , padding.left=20) %>%    # sisennys riveille 
+  theme_vanilla() %>%
+  bg(i= c(4,13) , bg="ivory") %>% 
+  bg(i= c(9,18) , bg="ivory") %>%
+  bold(i = ~ Gender %in% c('Men', 'Women')) %>% 
   fontsize(i = NULL, j = NULL, size = 8, part = "all") %>% 
-width(width =  c(Type = 2.7, `Deaths, n (%)` = 1.0, `Person-years (%)` = 1.2, `ASMR per 1 000 person-years  (95% CI)a` = 1.5, `Model 1b` = 1.076, `Model 2c` = 1.076, `Model 3d` = 1.076, `Model 4e` = 1.076)) 
+width(width =  c(Type = 2.7, `Deaths, n (%)` = 1.0, `Person-years (%)` = 1.2, `ASMR` = 1.2, `Model 1b` = 1.076, `Model 2c` = 1.076, `Model 3d` = 1.076, `Model 4e` = 1.076))  # column widths
 
 
 ```
@@ -82,4 +140,492 @@ width(width =  c(Type = 2.7, `Deaths, n (%)` = 1.0, `Person-years (%)` = 1.2, `A
 ^d^Model 3: adjusted for `r footnotes_lst$model_3`.
 ^e^`r footnotes_lst$secondary_only`.
 
-## 
+<br>
+
+## Excess mortality by mental disorder {.tabset}
+
+**Mortality rate ratios in individuals with a one-year history of mental health treatments compared to individuals without such a history, stratified by mental disorder**
+
+```{r}
+
+colors4 <- c("black", "darkorange", "dodgerblue1", "firebrick1")
+
+labs_lst$dgs_f1 <- c('Organic disorders', 'Substance use disorders', 'Schizophrenia spectrum', 'Mood disorders', 'Neurotic disorders', 'Physiological disturbances', 'Personality disorders', 'Mental retardation', 'Behavioural disorders')
+#labs_lst$dgs_fig1 <-  c(expression(bold('Any disorder')), labs_lst$dgs_f1, expression(italic('Organic and substance use excluded')))
+labs_lst$dgs_fig1 <-  c('<b>Any disorder</b>', labs_lst$dgs_f1,'<i>Organic and substance use excluded</i>')
+labs_lst$sukup <- c("Men", "Women")
+labs_lst$mrr <- 'Mortality rate ratio'
+labs_lst$models_4 = c('1: Basic', '2: SEP', '3: CCI', '4: SEP+CCI')
+
+dgs <- c("any_f", "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f9", "f_no_0_1")
+
+
+dat$fig_mrr_dg <- fread(here('data', 'fig_mrr_dg.csv'))
+
+fig_mrr_dg <- function(psy_in = 3, sukup_in, dodge_in = 0, limits_in = c(0,6)){
+  dat$fig_mrr_dg %>% 
+    .[clearence == 1 & psy == psy_in] %>%
+    .[sukup %in% sukup_in] %>% 
+    .[, dg := factor(dg, levels = dgs %>% rev(), labels = labs_lst$dgs_fig1 %>% rev())] %>% 
+    ggplot(aes(y=mrr, x= dg, group = 1, color=model,  
+               text = paste0('Model ', model, '<br>', mrr %>% n_decim(2), ' (', lci %>% n_decim(2),'-', uci %>% n_decim(2),')')
+               )
+           )+
+    geom_hline(yintercept = 1, color= "gray", linetype =1)+
+    geom_point(size = 1.0, position=position_dodge(width = dodge_in))+
+    geom_errorbar(aes(ymin = lci, ymax = uci, color = model), width =0, position=position_dodge(width = dodge_in))+
+    facet_rep_wrap('sukup', repeat.tick.labels = T)+
+    scale_color_manual(values = colors4)+
+    scale_y_continuous(breaks = seq(0, 10, 1), limits = limits_in)+
+    #scale_x_discrete(limits=rev, labels = rev(labs_lst$dgs_fig1))+
+    theme(
+      panel.grid = element_blank(),
+      axis.title.y = element_blank(),
+    )+
+    labs(y = labs_lst$mrr)+  
+    coord_flip()
+}
+
+opt_fig <- list()
+
+opt_fig$hoverlab <- list(bgcolor = "ivory",
+                 bordercolor = "#77777",
+                 font = list(color  = '#77777'),
+                 anchor = "right"
+                          )
+
+opt_fig$dg$legend <- list(
+      orientation = 'h', x = 0.1, y = -0.15,
+      title = "",
+      bordercolor = "gray",
+       borderwidth = 1
+      )
+```
+
+### Figure 1. Primary and secondary care combined
+
+```{r, f1}
+
+fig_mrr_dg_plotly <- function(psy_in =3){
+  men <- ggplotly(
+  fig_mrr_dg(psy_in = psy_in, sukup_in = c('Men')),
+  tooltip = c('text')
+  ) %>% layout(
+    legend = opt_fig$dg$legend,
+    yaxis = list(fixedrange = TRUE),
+    xaxis = list(fixedrange = TRUE)
+    ) %>% 
+  style(hoverlabel = opt_fig$hoverlab
+        ) %>% 
+  config(
+    displayModeBar = F)
+
+women <- ggplotly(
+  fig_mrr_dg(psy_in = psy_in, sukup_in = c('Women'))+theme(axis.text.y = element_blank()),
+  tooltip = c('text')
+  ) %>% layout(
+    legend = opt_fig$dg$legend,
+    yaxis = list(fixedrange = TRUE),
+    xaxis = list(fixedrange = TRUE)
+    ) %>% 
+  style(hoverlabel = opt_fig$hoverlab
+        ) %>% 
+  config(
+    displayModeBar = F)
+ 
+subplot(men, style(women, showlegend = FALSE), nrows=1, shareY = T) %>% 
+  add_annotations(
+        text = labs_lst$mrr,
+        x = 0.5,
+        y = -0.02,
+        yref = "paper",
+        xref = "paper",
+        xanchor = "center",
+        yanchor = "bottom",
+        yshift = -35,
+        showarrow = FALSE,
+        font = list(size = 15)
+    ) 
+
+}
+
+
+fig_mrr_dg_plotly(psy_in = 3)
+
+```
+
+
+### Figure 2. Primary care only
+
+```{r, f1Prim}
+
+fig_mrr_dg_plotly(psy_in = 1)
+```
+
+
+### Figure 3. Secondary care only
+
+```{r, f1Seco}
+
+fig_mrr_dg_plotly(psy_in = 2)
+
+```
+
+
+### Number of deaths and person-years by diagnosis
+
+Number of deaths and person-years at risk by gender and diagnostic categories in individuals with a history of mental health treatments in primary or secondary care
+
+```{r}
+
+dgs_all <- c("none", "any_f", "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f_no_0_1")
+
+labs_lst$dgs_all <- c("None", "Any disorder", 'Organic disorders (F0)', 'Substance use disorders (F1)', 'Schizophrenia (F2)', 'Mood disorders (F3)', 'Neurotic disorders (F4)', 'Physiological disturbances (F5)', 'Personality disorders (F6)', 'Mental retardation (F7)', 'Developmental disorders (F8)', 'Behavioural disorders (F9)', "Organic and substance use excluded")
+
+dat$n_dg <- fread(here('data', 'table_n_dg.csv')) 
+
+dat$n_dg %>% 
+  .[psy == 3] %>%
+  .[, dg := factor(dg, levels = dgs_all, labels = labs_lst$dgs_all)] %>% 
+  dcast(dg ~ sukup, value.var = c('deaths', 'person_years')) %>% 
+  .[, .(dg, deaths_Men, person_years_Men, deaths_Women, person_years_Women)] %>% 
+  flextable() %>% 
+  set_header_labels(dg = 'Diagnosis', deaths_Men = "Deaths, n (%)", person_years_Men = "Person-years (%)", 
+                    deaths_Women ="Deaths, n (%)", person_years_Women = "Person-years (%)") %>% 
+  add_header_row(values = c("", labs_lst$sukup[1], labs_lst$sukup[2]), colwidths = c(1, 2, 2)) %>%
+  theme_box() %>%
+  align(align = 'left') %>% 
+  theme_vanilla() %>%
+  #bg(i= c(4,13) , bg="ivory") %>% 
+  #bg(i= c(9,18) , bg="ivory") %>%
+  #bold(i = ~ Gender %in% c('Men', 'Women')) %>% 
+  fontsize(i = NULL, j = NULL, size = 8, part = "all") %>% 
+  padding( i= 3:12, j = "dg" , padding.left=20) %>% 
+  fontsize(i = NULL, j = NULL, size = 8, part = "all") %>% 
+  width(width =  c(dg = 2, deaths_Men = 1, person_years_Men = 1.2, deaths_Women = 1, person_years_Women = 1.2))
+
+
+
+```
+
+
+# {-}
+
+*Click on legend to select/un-select one trace, double-click to isolate.*
+
+Mental health treatments included both primary and secondary care. Mental disorders are presented based on ICD-10 sub-chapter categories; the group “organic and substance use excluded” presents all mental disorders excluding the ICD-10 sub-chapters F0 “Organic, including symptomatic, mental disorders” and F1 “Mental and behavioural disorders due to psychoactive substance use”. Category F8 “Disorders of psychological development” is not shown due to the low number of deaths (on average less than 10 per year in women). Model 1 was adjusted for `r footnotes_lst$model_1`. Modle 2 was adjusted for `r footnotes_lst$model_2`. Model 3 was adjusted for `r footnotes_lst$model_3`. Model 4 was adjusted for `r footnotes_lst$model_4`. Error bars represent 95% CIs.
+
+<br>
+
+## Excess mortality by age {.tabset}
+
+**Age-specific mortality rate ratios in individuals with a one-year history of mental health treatments compared to those without**
+
+
+```{r, out.height='600px'}
+
+labs_lst$agegr <- 'Age group'
+
+dat$fig_mrr_age <- fread(here('data', 'fig_mrr_age.csv')) %>% 
+  .[, sukup := factor(sukup, levels = c(1,2), labels = labs_lst$sukup)] %>% 
+  .[, model := factor(model, levels = c(1,2,3,4), labels = labs_lst$models_4)] %>% 
+  .[, agegr := factor(agegr, levels= seq(20,90,5), labels = c(paste(seq(20,85,5), seq(24,89,5), sep = '-'), '90+'))]
+
+
+fig_mrr_age <- function(sukup_in = c('Men', 'Women'), psy_in = 3, ylim_in= 21, dodge_in = 0.5){
+  dat$fig_mrr_age %>%  
+    .[psy== psy_in] %>% 
+  ggplot(aes(y=mrr, x=agegr, color= model,
+             text = paste0('Age: ', agegr, ', Model ', model, '<br> MRR: ', mrr %>% n_decim(2), ' (', lci %>% n_decim(2),'-', uci %>% n_decim(2),')')
+             )
+         )+
+  scale_y_continuous(trans = 'log2', limits = c(NA,ylim_in))+
+  #scale_x_continuous(breaks= seq(20,90,5), labels = c(paste(seq(20,85,5), seq(24,89,5), sep = '-'), '90+'))+
+  geom_hline(yintercept = 1, color = 'gray')+
+  geom_point(position = position_dodge(width = dodge_in), size = 0.5)+
+  geom_errorbar(aes(ymin = lci, ymax = uci),width =0, position = position_dodge(width =dodge_in))+
+  facet_rep_grid(~ sukup)+
+  scale_color_manual(values = colors4)+
+  theme(
+      panel.grid = element_blank(),
+      axis.text.x = element_text(angle = 45, hjust = 1)
+    )+
+  labs(color= "Model", y = labs_lst$mrr, x = "")
+}
+
+
+opt_fig$age$legend <- list(
+      orientation = 'h', x = 0.2, y = -0.2,
+      title = "",
+      bordercolor = "gray",
+       borderwidth = 1
+      )
+
+```
+
+### Figure 4. Primary and secondary care combined
+
+```{r, f2}
+fig_mrr_age(psy_in = 3) %>% 
+  ggplotly(
+    tooltip = c('text')
+    ) %>% layout(
+    legend = opt_fig$age$legend
+    ) %>% 
+  style(hoverlabel = opt_fig$hoverlab
+        ) %>% 
+  config(
+    displayModeBar = F) %>% 
+  add_annotations(
+        text = labs_lst$agegr,
+        x = 0.5,
+        y = -0.08,
+        yref = "paper",
+        xref = "paper",
+        xanchor = "center",
+        yanchor = "bottom",
+        yshift = -35,
+        showarrow = FALSE,
+        font = list(size = 15)
+    ) 
+
+```
+
+### Figure 5. Primary care
+
+```{r,f2prim}
+fig_mrr_age(psy_in = 1) %>% 
+ggplotly(
+  tooltip = c('text')
+  ) %>% layout(
+    legend = opt_fig$age$legend
+    ) %>% 
+  style(hoverlabel = opt_fig$hoverlab
+        ) %>% 
+  config(displayModeBar = F) %>% 
+  add_annotations(
+        text = labs_lst$agegr,
+        x = 0.5,
+        y = -0.08,
+        yref = "paper",
+        xref = "paper",
+        xanchor = "center",
+        yanchor = "bottom",
+        yshift = -35,
+        showarrow = FALSE,
+        font = list(size = 15)
+    ) 
+```
+
+### Figure 6. Secondary care
+
+```{r,  f2Seco}
+fig_mrr_age(psy_in = 2) %>% 
+ggplotly(
+  tooltip = c('text')
+  ) %>% layout(
+    legend = opt_fig$age$legend
+    ) %>% 
+  style(hoverlabel = opt_fig$hoverlab
+        ) %>% 
+  config(displayModeBar = F) %>% 
+  add_annotations(
+        text = labs_lst$agegr,
+        x = 0.5,
+        y = -0.08,
+        yref = "paper",
+        xref = "paper",
+        xanchor = "center",
+        yanchor = "bottom",
+        yshift = -35,
+        showarrow = FALSE,
+        font = list(size = 15)
+    ) 
+
+```
+
+# {-}
+
+Mortality rate ratios are shown on a log scale. Model 1 was adjusted for calendar year. Model 2 was adjusted for calendar year, urbanicity, region, education, living alone, household income, and economic activity. Model 3 was adjusted for calendar year, and Charlson Comorbidity Index (CCI). Model 4 was adjusted for calendar year, urbanicity, region, education, living alone, household income, economic activity, and CCI. Error bars represent 95% CIs.
+
+<br>
+
+##  Excess mortality stratified by comorbidity 
+
+**Mortality rate ratios in individuals with one-, three-, or five-year histories of mental health treatments compared to individuals without such a history, stratified by the presence of physical comorbidities and health care setting**
+
+```{r, figCci}
+
+labs_lst$cci <- c('0', '1-3', '>=4')
+labs_lst$cci_title <- 'Charlson comorbidity index'
+
+labs_lst$psy_f3 <- c('Primary care', 'Combined', 'Secondary care')
+labs_lst$psy_title <-'Mental health treatments'
+labs_lst$clearence <- c('1-year history', '3-year history', '5-year history')
+
+dat$fig_mrr_cci <- fread(here('data', 'fig_mrr_cci.csv')) %>% 
+  .[, sukup := factor(sukup, labels = labs_lst$sukup)] %>% 
+  .[, psy := factor(psy, levels = c(1,3,2), labels = labs_lst$psy_f3)] %>% 
+  .[, clearence := factor(clearence, labels = labs_lst$clearence)] %>% 
+  .[, cci := factor(cci, levels = rev(c(1,2,3)) , labels = rev(labs_lst$cci))]
+
+
+
+fig <- dat$fig_mrr_cci[model == 2] %>% 
+  ggplot(aes(y=mrr, x=cci, group = psy, color=psy, shape = psy,
+             text = paste0('CCI: ', cci, ', ',  psy, '<br>MRR: ', mrr %>% n_decim(2), ' (', lci %>% n_decim(2),'-', uci %>% n_decim(2), ')'))
+         )+
+  geom_hline(yintercept = 1, linetype =1, color = 'gray')+
+  geom_errorbar(aes(ymin = lci, ymax = uci), width =0, position=position_dodge(width = 0.5))+
+  geom_point(size = 1.5, position=position_dodge(width = 0.5))+
+  scale_color_manual(values = colors4)+
+  scale_shape_manual(values=c(16, 15, 17, 18))+
+  coord_flip()+
+  facet_rep_grid(clearence ~ sukup, repeat.tick.labels = F)+
+ # theme_bw()+
+  theme(
+    panel.border = element_rect(color = 'gray'),
+    panel.grid = element_blank(),
+    strip.background = element_rect(fill = "white", color = 'White')
+    )+
+  labs(y = labs_lst$mrr, x= labs_lst$cci_title)
+
+fig %>% 
+  ggplotly(
+    tooltip = c('text')
+    ) %>% 
+  layout(
+    legend = list(
+      orientation = 'h', x = 0.2, y = -0.1, 
+      title = list(text = '')
+      )
+    ) %>% 
+    style(hoverlabel = opt_fig$hoverlab
+        ) %>% 
+  config(displayModeBar = F)
+
+```
+
+Model adjusted for calendar year, age group, urbanicity, region, education, living alone, household income, and economic activity. Error bars represent 95% CIs.
+
+<br>
+
+## Sensitivity analysis
+
+**Age-standardized mortality rates (ASMRs) and mortality rate ratios (MRRs) in individuals with one-, three-, or five-year histories of mental health treatments compared to individuals without such treatments, primary and secondary care combined**
+
+```{r}
+
+labs_lst$psy <-  c('No mental health treatments', 'Primary care', 'Secondary care', 'Primary and secondary care combined', 'Inpatient care only', 'No secondary care treatments', 'Secondary care')
+labs_lst$models4 = c('Model 1', 'Model 2', 'Model 3', 'Model 4')
+
+dat$sensitivity <- fread(here('data', 'sensitivity_tabl.csv')) 
+
+dat$sensitivity %>% 
+  .[, sukup := factor(sukup)] %>% 
+  .[, psy := factor(psy)] %>%
+  .[, -c('crude')] %>% 
+  .[is.na(get(labs_lst$models4[1])), (labs_lst$models4[1:3]) := '1 [Reference]'] %>% 
+#  .[order(sukup, psy)] %>% 
+  as_grouped_data(groups = c('sukup', 'psy')) %>% 
+  as_flextable(hide_grouplabel= TRUE) %>% 
+  compose(part = "header", j = "deaths"  , value = as_paragraph("Deaths, n (%)")) %>%
+  compose(part = "header", j = "person_years"  , value = as_paragraph("Person-years (%)")) %>%
+  compose(part = "header", j = "adjusted", value = as_paragraph(labs_lst$asmr, as_sup("a"))) %>%
+  compose(part = "header", j = "Model 1" , value = as_paragraph("Model 1", as_sup("b"))) %>%
+  compose(part = "header", j = "Model 2" , value = as_paragraph("Model 2", as_sup("c"))) %>%
+  compose(part = "header", j = "Model 3" , value = as_paragraph("Model 3", as_sup("d"))) %>%
+  compose(part = "header", j = "Model 4" , value = as_paragraph("Model 4", as_sup("e"))) %>% 
+  add_header_row(values = c("", labs_lst$mrr_ci), colwidths = c(4, 4)) %>% 
+  set_header_labels(Type = "") %>% 
+  theme_vanilla() %>%
+#  bg(i= c(4,13) , bg="ivory") %>% 
+#  bg(i= c(9,18) , bg="ivory") %>%
+  fontsize(i = NULL, j = NULL, size = 8, part = "all") %>% 
+  width(width =  c(clearence = 1.7, `Deaths, n (%)` = 1.0, `Person-years (%)` = 1.2, `adjusted` = 1.2, `Model 1b` = 1.076, `Model 2c` = 1.076, `Model 3d` = 1.076, `Model 4e` = 1.076)) 
+
+ 
+
+```
+
+^a^`r footnotes_lst$asmr`.
+^b^Model 1: adjusted for `r footnotes_lst$model_1`.
+^c^Model 2: adjusted for `r footnotes_lst$model_2`.
+^d^Model 3: adjusted for `r footnotes_lst$model_3`.
+
+<br>
+
+# Supplementary methods 
+
+## Assessment of the history of mental health treatments
+
+Information on mental health care was obtained from the Finnish Care Register for Health Care. Primary care has been included since 2011. The register has a good accuracy of mental health diagnoses [@Sund2012].
+
+The diagnostic system used was International Statistical Classification of Diseases and Related Health Problems, Tenth Revision (ICD-10). We described specific disorders with the ten-level ICD-10 sub-chapter categories (see Supplementary methods). In addition, individuals with mental disorders excluding organic disorders (F00-F09) and substance use disorders (F10-F19) were recognized. In primary care, ICPC-2 International Classification of Primary Care, instead of ICD-10 is used in some facilities, and ICPC-2 mental health-related diagnoses were converted to corresponding ICD-10 sub-chapter categories.[@WONCA2005] A description of the method used for handling partly overlapping register data entries is [publicly available](https://github.com/kmmsks/hilmo_identify_episodes/).[@Suokas2021]
+
+For every individual in the study, person-time at risk of death was dynamically labeled based on the history of mental health treatments. A history of mental health treatments was defined as having any medical contact with secondary care psychiatric inpatient or outpatient services, or with primary care with a diagnosis of any mental disorder (i.e. ICD-10 Chapter V: Mental and behavioural disorders (F00-F99), or ICPC-2 chapter P: Psychological) within the previous year.
+
+Time spent in psychiatric inpatient care and the following year after the discharge date, and one year after any Secondary care psychiatric outpatient visits, was labeled as follow-up time with a one-year history of secondary mental health care. From exactly one year after the latest discharge, or the latest Secondary care outpatient contact, if still at risk of death, the individual no longer contributed to the Secondary care population and returned to either the population with a one-year history of Primary care, or the reference population with no one-year history of mental health treatments.
+
+One year following any Primary care visit with a diagnosis of mental disorder was labeled as follow-up time with a one-year history of primary mental health care. Exactly one year after the latest Primary care contact, if still at risk of death and with no new Secondary care contacts, the individual returned to contributing to the reference population with no one-year history of mental health treatments. If a contact to Secondary care occurred during the follow-up time with a one-year history of Primary care, the individual’s follow-up time was relabeled to Secondary care based on the date of the Secondary care contact. If a Primary care contact emerged less than one year after the latest Secondary care contact, the follow-up time was relabeled to Primary care one year after the latest Secondary care contact, until one year had passed since the latest Primary care contact.
+
+<br>
+
+### ICD-10 sub-chapter categories of mental disorders
+The International Statistical Classification of Diseases and Related Health Problems, Tenth Revision (ICD-10) has been used in Finland since 1996. The 10 sub-chapter categories of mental disorders include: 
+
+```{r}
+
+data.table(
+  #Abbreviation =c("F0", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9"), 
+  `ICD-10 code` =c("F00-F09", "F10-F19", "F20-F29", "F30-F39", "F40-F48", "F50-F59", "F60-F69", "F70-F79", "F80-F89", "F90-F98"),
+  `Title of the category` = c("Organic, including symptomatic, mental disorders", 
+           "Mental and behavioural disorders due to psychoactive substance use", 
+           "Schizophrenia, schizotypal and delusional disorders", 
+           "Mood [affective] disorders; neurotic", 
+           "Stress-related and somatoform disorders", 
+           "Behavioural syndromes associated with physiological disturbances and physical factors", 
+           "Disorders of adult personality and behaviour", 
+           "Mental retardation", 
+           "Disorders of psychological development", 
+           "Behavioural and emotional disorders with onset usually occurring in childhood and adolescence"
+           )
+  ) %>% 
+  flextable() %>% 
+    theme_alafoli() %>%
+  autofit() %>% 
+  fontsize(i = NULL, j = NULL, size = 8, part = "all")
+
+
+```
+
+<br>
+
+### Conversion of the ICPC-2 International Classification of Primary Care diagnoses
+
+According to the ICPC-2 manual,[@WONCA2005] “ICPC is based on a simple bi-axial structure: 17 chapters based on body systems on one axis, each with an alpha code, and seven identical components with rubrics bearing a two-digit numeric code as the second axis”. Conditions listed in ICPC-2, chapter P: “Psychological” were included in this study. In the Finnish version of ICPC-2, the chapter P is translated to the Finnish equivalent of “mental health” not “psychological”·@Kvist2010 The Finnish version was used throughout the conversion process.
+
+The conversion codes from ICPC-2 to ICD-10 are provided in the ICPC-2 manual and were adopted in this study. ICPC-2 concepts not represented exactly in the ICD-10 were included as a separate group of their own and are not included in the ICD-10 sub-chapter categories.
+
+### Cofactors
+
+The following individual-level data on the last day of each study year from the population registers were included: 
+
+- **gender**: man or woman, 
+- **urbanicity of residence area**: a seven level classification,[@FinnishEnvironmentInstitute] 
+- **region of residence**: 19 regions, 
+- **living alone status**: living alone or not,
+- **level of educational attainment**: less than upper secondary, upper secondary, or tertiary. A national classification based on the United Nations Educational, Scientific and Cultural Organization’s International Standard Classification of Education 2011, 
+- **economic activity**: employed, unemployed, students, pensioners and others outside the labour force, and 
+- **equivalized household net income deciles**. Net income was obtained after subtracting taxes and was adjusted for the size of household dwelling unit, using the Organisation for Economic Co-operation and Development–modified equivalence scale. Income measurement with a three-year lag was used to account for potential reverse causation.
+- **Physical comorbidity** was assessed using the Charlson comorbidity index (CCI),[@Bannay2016] a widely used comorbidity index with a weighted score of 17 comorbid conditions. For every study year and for every individual in the study, the CCI score was calculated using available ICD-10 diagnoses of any actual treatment contacts in the health care registers from the beginning of the previous calendar year. Age was not included in the CCI scores, but adjusted in the main model, instead. CCI scores were categorized by previously used cut-points: none, 1-3, and ≥4.[@Erlangsen2020]
+
+### Statistical analysis
+
+Deaths and person-time at risk were labelled based on the one-year history of mental health treatments. Individual follow-up time was allocated dynamically between primary and secondary care and the reference population based on the actual dates. All variables were treated as time-varying factors. If the exact time of change in covariate status was not known, mid-year was assumed. We aggregated the number of deaths and person-years at risk according to calendar year, treatment history, and the covariates and we calculated age- and stratum-specific mortality rates. The 2013 Revision of the European Standard Population was used for direct age standardization.
+
+Mortality rate ratios (MRRs) were examined using a Poisson regression model with a robust variance estimator. The cells in the aggregated data were taken as the unit of analysis, with the logarithms of the aggregated person-years counts set as an offset variable. Bayesian information criteria were used for model selection.
+
+### References
+
+<div id="refs"></div>
