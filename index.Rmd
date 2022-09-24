@@ -86,7 +86,7 @@ footnotes_lst$secondary_only <- "Mortality in individuals with secondary care tr
 
 **Description:** This document contains supplementary information on the study: 
 
-Suokas K, Hakulinen C, Sund R, Kampman O, Pirkola S. Mortality in persons with recent primary or secondary care contacts for mental disorders in Finland. World Psychiatry (in press).
+Suokas K, Hakulinen C, Sund R, Kampman O, Pirkola S. Mortality in persons with recent primary or secondary care contacts for mental disorders in Finland. World Psychiatry. 2022;21(3):470-1
 
 <br>
 
@@ -162,7 +162,7 @@ dgs <- c("any_f", "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f9", "f_no_0_
 
 dat$fig_mrr_dg <- fread(here('data', 'fig_mrr_dg.csv'))
 
-fig_mrr_dg <- function(psy_in = 3, sukup_in, dodge_in = 0, limits_in = c(0,6)){
+fig_mrr_dg <- function(psy_in = 3, sukup_in, dodge_in = 0, limits_in = c(0,10)){
   dat$fig_mrr_dg %>% 
     .[clearence == 1 & psy == psy_in] %>%
     .[sukup %in% sukup_in] %>% 
@@ -206,9 +206,9 @@ opt_fig$dg$legend <- list(
 
 ```{r, f1}
 
-fig_mrr_dg_plotly <- function(psy_in =3){
+fig_mrr_dg_plotly <- function(psy_in =3, limits = c(0,6)){
   men <- ggplotly(
-  fig_mrr_dg(psy_in = psy_in, sukup_in = c('Men')),
+  fig_mrr_dg(psy_in = psy_in, sukup_in = c('Men'), limits_in = limits),
   tooltip = c('text')
   ) %>% layout(
     legend = opt_fig$dg$legend,
@@ -221,7 +221,7 @@ fig_mrr_dg_plotly <- function(psy_in =3){
     displayModeBar = F)
 
 women <- ggplotly(
-  fig_mrr_dg(psy_in = psy_in, sukup_in = c('Women'))+theme(axis.text.y = element_blank()),
+  fig_mrr_dg(psy_in = psy_in, sukup_in = c('Women'), limits_in = limits)+theme(axis.text.y = element_blank()),
   tooltip = c('text')
   ) %>% layout(
     legend = opt_fig$dg$legend,
@@ -267,10 +267,10 @@ fig_mrr_dg_plotly(psy_in = 1)
 
 ```{r, f1Seco}
 
-fig_mrr_dg_plotly(psy_in = 2)
+fig_mrr_dg_plotly(psy_in = 2, limits = c(0,9))
 
 ```
-
+<div style="color:darkred;text-align:center">Note X axis values</div>
 
 ### Number of deaths and person-years by diagnosis
 
